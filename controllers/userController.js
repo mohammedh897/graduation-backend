@@ -41,7 +41,7 @@ exports.loginUser = async (req, res) => {
         // For now, just return success + user ID (token comes later)
         res.json({ message: '✅ Login successful!', token });
     } catch (error) {
-        res.status(500).json({ error: '❌ Login failed', details: error.message });
+        res.status(500).json({ error: '❌ Login_failed', details: error.message });
     }
 };
 

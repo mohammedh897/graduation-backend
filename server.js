@@ -26,7 +26,9 @@ app.use('/', userRoutes);
 app.get('/', (req, res) => {
     res.send('🎉 Hello from your backend!');
 });
-
+app.get('/back', (req, res) => {
+    res.send('🎉 Hello from your backend!_new');
+});
 // Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server is running on http://localhost:${PORT}`);
