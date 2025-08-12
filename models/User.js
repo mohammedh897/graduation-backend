@@ -9,6 +9,9 @@ const UserSchema = new mongoose.Schema({
     isAdmin: { type: Boolean, default: false },
     userType: { type: String, enum: ['Student', 'Supervisor'], default: 'Student', required: true },
     // supervisor: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } // only for students
+    status: { type: String, enum: ['available', 'full'], default: 'available' },
+    maxProjects: { type: Number, default: 3 },
+    currentProjects: { type: Number, default: 0 }
 
 }, { versionKey: false });
 

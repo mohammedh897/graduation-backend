@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 
 const runReminders = require('./jobs/reminderJob');
 
+// app.use('/supervisors', require('./routes/supervisorRoutes'));
 
 const express = require('express');
 const cors = require('cors');
@@ -30,8 +31,12 @@ app.use('/', taskRoutes);
 const userRoutes = require('./routes/userRoutes');
 app.use('/', userRoutes);
 
+const projectRoutes = require('./routes/projectRoutes');
+app.use('/projects', projectRoutes);
+
 // const supervisorRoutes = require('./routes/supervisorRoutes');
 // app.use('/', supervisorRoutes);
+app.use('/supervisors', require('./routes/supervisorRoutes'));
 
 // const initializeTypes = require('./seed/initializeTypes');
 
