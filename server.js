@@ -30,6 +30,13 @@ app.use('/', taskRoutes);
 const userRoutes = require('./routes/userRoutes');
 app.use('/', userRoutes);
 
+// const supervisorRoutes = require('./routes/supervisorRoutes');
+// app.use('/', supervisorRoutes);
+
+// const initializeTypes = require('./seed/initializeTypes');
+
+// initializeTypes(); // Now this should work
+
 // Home route
 app.get('/', (req, res) => {
     res.send('🎉 Hello from your backend!');
