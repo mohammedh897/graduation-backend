@@ -23,5 +23,18 @@ const sendReminderEmail = (to, taskTitle, dueDate) => {
 
     return transporter.sendMail(mailOptions);
 };
+const sendProjectInviteEmail = (to, projectName, teamCode) => {
+    const mailOptions = {
+        from: `"Project Tracker" <${process.env.EMAIL_USER}>`,
+        to,
+        subject: `Invitation to join project: ${projectName}`,
+        text: `You have been invited to join the project "${projectName}".\n\n` +
+            `Use this team code to join: ${teamCode}\n\n` +
+            `Log in to the app and use the "Join Team" option.`
+    };
 
-module.exports = sendReminderEmail;
+    return transporter.sendMail(mailOptions);
+};
+
+module.exports = { sendReminderEmail, sendProjectInviteEmail };
+// module.exports = sendReminderEmail;

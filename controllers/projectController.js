@@ -51,10 +51,15 @@ exports.createProject = async (req, res) => {
         await supervisor.save();
 
         // 5. Send invitation emails (pseudo-code, we can integrate Nodemailer later)
+        const { sendProjectInviteEmail } = require('../utils/mailer');
+
         if (Array.isArray(emails) && emails.length > 0) {
             console.log(`📧 Sending invites to: ${emails.join(', ')} with code: ${teamCode}`);
-            // TODO: Use Nodemailer to send real emails
+            for (let email of emails) {
+                await sendProjectInviteEmail(email, projectName, teamCode);
+            }
         }
+
 
         return response.success(res, "Project created successfully", {
             projectId: project._id,
@@ -63,6 +68,31 @@ exports.createProject = async (req, res) => {
 
     } catch (err) {
         console.error(err);
+        return response.error(res, err.message, 500);
+    }
+};
+exports.joinProject = async (req, res) => {
+    try {
+        const { teamCode } = req.body;
+        const userId = req.user.id; // from JWT
+
+        // 1. Find the project
+        const project = await Project.findOne({ teamCode });
+        if (!project) {
+            return response.error(res, "Invalid team code", 404);
+        }
+
+        // 2. Check if already a member
+        if (project.members.includes(userId) || project.leader.toString() === userId) {
+            return response.error(res, "You are already part of this project", 400);
+        }
+
+        // 3. Add the member
+        project.members.push(userId);
+        await project.save();
+
+        return response.success(res, "Joined project successfully", project);
+    } catch (err) {
         return response.error(res, err.message, 500);
     }
 };
