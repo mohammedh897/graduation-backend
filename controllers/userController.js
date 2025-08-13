@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const response = require("../utils/response");
+const Project = require('../models/Project'); // <-- add this
 
 exports.registerUser = async (req, res) => {
     try {
@@ -68,6 +69,15 @@ exports.loginUser = async (req, res) => {
             { expiresIn: "1d" }
         );
 
+        const project = await Project.findOne({
+            $or: [
+                { leader: user._id },
+                { members: user._id }
+            ]
+        }).select('_id');
+
+        const inProject = !!project; // true if found
+
         // const token = jwt.sign(
         //     process.env.JWT_SECRET,
         //     { expiresIn: '1h' }
@@ -80,6 +90,8 @@ exports.loginUser = async (req, res) => {
             email: user.email,
             userType: user.userType,
             isAdmin: user.isAdmin,
+            inProject,
+            projectId: project ? project._id : null,
             token
         });
     } catch (error) {

@@ -8,6 +8,18 @@ exports.createProject = async (req, res) => {
         const { projectName, description, supervisorId, emails } = req.body;
         const leaderId = req.user.id; // Comes from auth middleware
 
+        const existingProject = await Project.findOne({
+            $or: [
+                { leader: leaderId },
+                { members: leaderId }
+            ]
+        });
+
+        if (existingProject) {
+            return response.error(res, "You are already in a project", 400);
+        }
+
+
         // 1. Validate inputs
         if (!projectName || !supervisorId) {
             return response.error(res, "Project name and supervisor are required", 400);
@@ -75,6 +87,16 @@ exports.joinProject = async (req, res) => {
     try {
         const { teamCode } = req.body;
         const userId = req.user.id; // from JWT
+        const existingProject = await Project.findOne({
+            $or: [
+                { leader: userId },
+                { members: userId }
+            ]
+        });
+
+        if (existingProject) {
+            return response.error(res, "You are already in a project", 400);
+        }
 
         // 1. Find the project
         const project = await Project.findOne({ teamCode });
