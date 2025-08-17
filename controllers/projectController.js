@@ -83,6 +83,7 @@ exports.createProject = async (req, res) => {
         return response.error(res, err.message, 500);
     }
 };
+
 exports.joinProject = async (req, res) => {
     try {
         const { teamCode } = req.body;
@@ -105,15 +106,54 @@ exports.joinProject = async (req, res) => {
         }
 
         // 2. Check if already a member
-        if (project.members.includes(userId) || project.leader.toString() === userId) {
-            return response.error(res, "You are already part of this project", 400);
+        // if (project.members.includes(userId) || project.leader.toString() === userId) {
+        //     return response.error(res, "You are already part of this project", 400);
+        // }
+
+        if (project.members.length >= 4) {
+            return response.error(res, "This project already has 4 members", 400);
         }
 
-        // 3. Add the member
+        // Add user
         project.members.push(userId);
+
+        // If team is now full, update status
+        if (project.members.length >= 4) {
+            project.status = "full";
+        }
+
         await project.save();
 
+        // 3. Add the member
+        // project.members.push(userId);
+        // await project.save();
+
         return response.success(res, "Joined project successfully", project);
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
+
+
+exports.getMyProject = async (req, res) => {
+    try {
+        const userId = req.user.id; // comes from JWT middleware
+
+        const project = await Project.findOne({
+            $or: [
+                { leader: userId },
+                { members: userId }
+            ]
+        })
+            .populate('supervisor', 'username email')
+            .populate('leader', 'username email')
+            .populate('members', 'username email');
+
+        if (!project) {
+            return response.success(res, "No project found", null);
+        }
+
+        return response.success(res, "Project retrieved", project);
     } catch (err) {
         return response.error(res, err.message, 500);
     }

@@ -24,7 +24,7 @@ exports.createTask = async (req, res) => {
 // GET handler
 exports.getAllTasks = async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const userId = req.user.id;
         const { status, dueToday, overdue, reminderToday } = req.query;
 
         const query = { userId };

@@ -14,7 +14,7 @@ const UserSchema = new mongoose.Schema({
             return this.userType === 'Supervisor' ? 'available' : undefined;
         }
     },
-    maxProjects: { type: Number, default: 3 },
+    maxProjects: { type: Number, default: 7 },
     currentProjects: { type: Number, default: 0 }
 
 }, { versionKey: false });

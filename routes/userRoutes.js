@@ -1,5 +1,6 @@
 const express = require('express');
 const User = require('../models/User');
+const Project = require('../models/Project');
 
 const authMiddleware = require('../middleware/verifyToken');      // ✅ Auth only
 const adminMiddleware = require('../middleware/adminMiddleware'); // ✅ Admin check
@@ -51,6 +52,17 @@ router.delete('/admin/users/:id', authMiddleware, adminMiddleware, async (req, r
         res.status(500).json({ error: '❌ Failed to delete user', details: err.message });
     }
 });
+// router.get('/projects', authMiddleware, adminMiddleware, getAllProjects);
 
-
+router.get('/projects', authMiddleware, adminMiddleware, async (req, res) => {
+    // const users = await User.find();
+    // res.json(users);
+    // res.json(users);
+    try {
+        const project = await Project.find({}, "-password -__v"); // hide password and __v
+        return response.success(res, "Project fetched successfully", project);
+    } catch (error) {
+        return response.error(res, error.message, 500);
+    }
+});
 module.exports = router;

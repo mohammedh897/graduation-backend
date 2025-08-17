@@ -38,6 +38,8 @@ app.use('/projects', projectRoutes);
 // app.use('/', supervisorRoutes);
 app.use('/supervisors', require('./routes/supervisorRoutes'));
 
+app.use('/dashboard', require('./routes/dashboardRoutes'));
+
 // const initializeTypes = require('./seed/initializeTypes');
 
 // initializeTypes(); // Now this should work

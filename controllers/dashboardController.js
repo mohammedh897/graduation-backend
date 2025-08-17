@@ -1,0 +1,46 @@
+const Project = require('../models/Project');
+const User = require('../models/User');
+const response = require('../utils/response');
+
+exports.getDashboard = async (req, res) => {
+    try {
+        const userId = req.user.userId; // from JWT
+        const user = await User.findById(userId);
+
+        if (!user) return response.error(res, "User not found", 404);
+
+        let data = {};
+
+        if (user.userType === 'Student') {
+            const project = await Project.findOne({
+                $or: [{ leader: userId }, { members: userId }]
+            })
+                .populate('supervisor', 'username email status')
+                .populate('leader', 'username email')
+                .populate('members', 'username email');
+
+            data = project || null;
+        }
+
+        if (user.userType === 'Supervisor') {
+            const projects = await Project.find({ supervisor: userId })
+                .populate('leader', 'username email')
+                .populate('members', 'username email');
+
+            data = projects;
+        }
+
+        if (user.isAdmin) {
+            const projects = await Project.find()
+                .populate('supervisor', 'username email')
+                .populate('leader', 'username email')
+                .populate('members', 'username email');
+
+            data = projects;
+        }
+
+        return response.success(res, "Dashboard data", data);
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
