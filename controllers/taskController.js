@@ -5,7 +5,7 @@ exports.createTask = async (req, res) => {
     try {
         const newTask = new Task({
             title: req.body.task,
-            userId: req.user.userId,// pulled from the decoded token
+            userId: req.user.id,// pulled from the decoded token
             dueDate: req.body.dueDate,
             reminderDate: req.body.reminderDate
         });
@@ -83,7 +83,7 @@ exports.updateTask = async (req, res) => {
             updatedAt: Date.now()
         }
         const updated = await Task.findOneAndUpdate(
-            { _id: taskId, userId: req.user.userId }, // only allow owner
+            { _id: taskId, userId: req.user.id }, // only allow owner
             updates,
             { new: true }
         );
@@ -102,7 +102,7 @@ exports.deleteTask = async (req, res) => {
         const taskId = req.params.id;
         const deleted = await Task.findOneAndDelete({
             _id: taskId,
-            userId: req.user.userId
+            userId: req.user.id
         });
 
         if (!deleted) return res.status(404).json({ error: 'Task not found or not yours' });
@@ -114,7 +114,7 @@ exports.deleteTask = async (req, res) => {
 };
 exports.getProgressSummary = async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const userId = req.user.id;
 
         const allTasks = await Task.find({ userId });
 
