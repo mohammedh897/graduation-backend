@@ -4,7 +4,7 @@ const response = require('../utils/response');
 
 exports.getDashboard = async (req, res) => {
     try {
-        const userId = req.user.userId; // from JWT
+        const userId = req.user.id; // from JWT
         const user = await User.findById(userId);
 
         if (!user) return response.error(res, "User not found", 404);
@@ -17,15 +17,21 @@ exports.getDashboard = async (req, res) => {
             })
                 .populate('supervisor', 'username email status')
                 .populate('leader', 'username email')
-                .populate('members', 'username email');
+                .populate('members', 'username email')
 
-            data = project || null;
+            if (project) {
+                // Call the progress summary function and attach its value
+                const { getProjectProgressSummary } = require('../controllers/projectController');
+                const progressSummary = await getProjectProgressSummary(project._id);
+                data = { ...project.toObject(), progressSummary };
+            }
         }
+
 
         if (user.userType === 'Supervisor') {
             const projects = await Project.find({ supervisor: userId })
                 .populate('leader', 'username email')
-                .populate('members', 'username email');
+                .populate('members', 'username email')
 
             data = projects;
         }
@@ -34,10 +40,11 @@ exports.getDashboard = async (req, res) => {
             const projects = await Project.find()
                 .populate('supervisor', 'username email')
                 .populate('leader', 'username email')
-                .populate('members', 'username email');
+                .populate('members', 'username email')
 
             data = projects;
         }
+
 
         return response.success(res, "Dashboard data", data);
     } catch (err) {

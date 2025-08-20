@@ -1,10 +1,10 @@
 const cron = require('node-cron');
 const Task = require('../models/Task');
 const User = require('../models/User');
-const sendReminderEmail = require('../utils/mailer');
+const { sendReminderEmail } = require('../utils/mailer');
 
 const runReminders = () => {
-    cron.schedule('*/ * * 8 * *', async () => {
+    cron.schedule('*/* 1 * * * *', async () => { // checks every one sec 
         console.log('📣 Running reminder job...');
 
         const today = new Date();
@@ -22,7 +22,7 @@ const runReminders = () => {
 
         for (const task of tasks) {
             console.log(`🕒 ReminderDate = ${task.reminderDate.toDateString()}`);
-            const user = await User.findById(task.userId);
+            const user = await User.findById(task.assignedTo);
 
             if (user) {
                 console.log(`🔔 Sending email to ${user.username} for "${task.title}"`);

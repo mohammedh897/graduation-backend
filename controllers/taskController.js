@@ -1,141 +1,113 @@
 const Task = require('../models/Task');
+const Project = require('../models/Project');
+const response = require("../utils/response");
 
-// POST handler
+// Create a task
 exports.createTask = async (req, res) => {
     try {
+        const { title, assignedTo, dueDate, reminderDate } = req.body;
+        const userId = req.user.id;
+
+        // 1️⃣ Find the project of the logged-in user
+        const project = await Project.findOne({
+            $or: [{ leader: userId }, { members: userId }]
+        });
+
+        if (!project) {
+            return response.error(res, "You are not part of any project", 403);
+        }
+
+        // 2️⃣ Default assignedTo = yourself
+        let targetUser = assignedTo || userId;
+
+        // 3️⃣ Validate assignedTo is part of the same project
+        if (!project.members.includes(targetUser) && project.leader.toString() !== targetUser.toString()) {
+            return response.error(res, "Cannot assign tasks outside your project", 403);
+        }
+
+        // 4️⃣ Create task
         const newTask = new Task({
-            title: req.body.task,
-            userId: req.user.id,// pulled from the decoded token
-            dueDate: req.body.dueDate,
-            reminderDate: req.body.reminderDate
+            title,
+            projectId: project._id,
+            assignedBy: userId,
+            assignedTo: targetUser,
+            dueDate,
+            reminderDate
         });
 
         const saved = await newTask.save();
 
-        res.json({ message: '✅ Task saved to database!', task: saved });
+        return response.success(res, "Task created successfully", saved, 201);
     } catch (error) {
-        res.status(500).json({
-            error: '❌ Failed to save task',
-            details: error.message,
-        });
+        return response.error(res, error.message, 500);
     }
 };
 
-// GET handler
-exports.getAllTasks = async (req, res) => {
+// Get all tasks for project
+exports.getProjectTasks = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { status, dueToday, overdue, reminderToday } = req.query;
 
-        const query = { userId };
+        const project = await Project.findOne({
+            $or: [{ leader: userId }, { members: userId }]
+        });
 
-        // ✅ Filter by status
-        if (status) {
-            query.status = status;
+        if (!project) {
+            return response.error(res, "You are not part of any project", 403);
         }
 
-        // ✅ Filter for due today
-        if (dueToday === 'true') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+        const tasks = await Task.find({ projectId: project._id })
+            .populate('assignedBy', 'username email')
+            .populate('assignedTo', 'username email');
 
-            const tomorrow = new Date(today);
-            tomorrow.setDate(today.getDate() + 1);
-
-            query.dueDate = { $gte: today, $lt: tomorrow };
-        }
-
-        // ✅ Filter for overdue
-        if (overdue === 'true') {
-            const now = new Date();
-            query.dueDate = { $lt: now };
-            query.status = { $ne: 'Completed' }; // optional: don't include completed
-        }
-
-        // ✅ Filter for reminders today
-        if (reminderToday === 'true') {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            const tomorrow = new Date(today);
-            tomorrow.setDate(today.getDate() + 1);
-
-            query.reminderDate = { $gte: today, $lt: tomorrow };
-        }
-
-        const tasks = await Task.find(query);
-        res.json(tasks);
-
+        return response.success(res, "Project tasks retrieved", tasks);
     } catch (error) {
-        res.status(500).json({ error: '❌ Failed to fetch tasks', details: error.message });
+        return response.error(res, error.message, 500);
     }
 };
 
+// Update task
 exports.updateTask = async (req, res) => {
     try {
         const taskId = req.params.id;
-        const updates = {
-            title: req.body.task,
-            status: req.body.status,
-            progress: req.body.progress,
-            dueDate: req.body.dueDate,
-            reminderDate: req.body.reminderDate,
-            updatedAt: Date.now()
+        const userId = req.user.id;
+
+        const task = await Task.findById(taskId);
+        if (!task) return response.error(res, "Task not found", 404);
+
+        const project = await Project.findById(task.projectId);
+        if (!project.members.includes(userId) && project.leader.toString() !== userId.toString()) {
+            return response.error(res, "You cannot update tasks outside your project", 403);
         }
-        const updated = await Task.findOneAndUpdate(
-            { _id: taskId, userId: req.user.id }, // only allow owner
-            updates,
-            { new: true }
-        );
 
-        if (!updated) return res.status(404).json({ error: 'Task not found or not yours' });
+        Object.assign(task, req.body, { updatedAt: Date.now() });
+        const updated = await task.save();
 
-        res.json({ message: '✅ Task updated!', task: updated });
+        return response.success(res, "Task updated", updated);
     } catch (error) {
-        res.status(500).json({ error: '❌ Failed to update task', details: error.message });
+        return response.error(res, error.message, 500);
     }
 };
 
-// DELETE /task/:id - Delete a task
+// Delete task
 exports.deleteTask = async (req, res) => {
     try {
         const taskId = req.params.id;
-        const deleted = await Task.findOneAndDelete({
-            _id: taskId,
-            userId: req.user.id
-        });
-
-        if (!deleted) return res.status(404).json({ error: 'Task not found or not yours' });
-
-        res.json({ message: '🗑️ Task deleted successfully!' });
-    } catch (error) {
-        res.status(500).json({ error: '❌ Failed to delete task', details: error.message });
-    }
-};
-exports.getProgressSummary = async (req, res) => {
-    try {
         const userId = req.user.id;
 
-        const allTasks = await Task.find({ userId });
+        const task = await Task.findById(taskId);
+        if (!task) return response.error(res, "Task not found", 404);
 
-        const totalTasks = allTasks.length;
-        const completedTasks = allTasks.filter(t => t.status === 'Completed').length;
-        const inProgressTasks = allTasks.filter(t => t.status === 'In Progress').length;
-        const PendingTasks = allTasks.filter(t => t.status === 'Pending').length;
+        const project = await Project.findById(task.projectId);
+        if (!project.members.includes(userId) && project.leader.toString() !== userId.toString()) {
+            return response.error(res, "You cannot delete tasks outside your project", 403);
+        }
 
-        const completionPercentage = totalTasks === 0
-            ? 0
-            : Math.round((completedTasks / totalTasks) * 100);
+        await Task.findByIdAndDelete(taskId);
 
-        res.json({
-            totalTasks,
-            completedTasks,
-            inProgressTasks,
-            PendingTasks,
-            completionPercentage
-        });
-
+        return response.success(res, "Task deleted successfully");
     } catch (error) {
-        res.status(500).json({ error: '❌ Failed to get progress summary', details: error.message });
+        return response.error(res, error.message, 500);
     }
 };
+

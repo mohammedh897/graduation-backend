@@ -1,5 +1,6 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
+const Task = require('../models/Task');
 const generateTeamCode = require('../utils/generateCode');
 const response = require('../utils/response'); // Your success/error wrapper
 
@@ -154,6 +155,58 @@ exports.getMyProject = async (req, res) => {
         }
 
         return response.success(res, "Project retrieved", project);
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
+exports.getProjectProgressSummary = async (projectId) => {
+    // Make sure project exists
+    const project = await Project.findById(projectId);
+    if (!project) {
+        throw new Error("Project not found");
+    }
+
+    // Get all tasks in this project
+    const allTasks = await Task.find({ projectId });
+
+    const totalTasks = allTasks.length;
+    const completedTasks = allTasks.filter(t => t.status === 'Completed').length;
+    const inProgressTasks = allTasks.filter(t => t.status === 'In Progress').length;
+    const pendingTasks = allTasks.filter(t => t.status === 'Pending').length;
+
+    const completionPercentage = totalTasks === 0
+        ? 0
+        : Math.round((completedTasks / totalTasks) * 100);
+
+    return {
+        projectId,
+        totalTasks,
+        completedTasks,
+        inProgressTasks,
+        pendingTasks,
+        completionPercentage
+    };
+
+};
+
+exports.getProjectMembers = async (req, res) => {
+    try {
+        const userId = req.user.id; // from JWT
+
+        // Find project where this user is a leader or member
+        const project = await Project.findOne({
+            $or: [{ leader: userId }, { members: userId }]
+        }).populate('members', 'username email');
+
+
+        if (!project) {
+            return response.error(res, "Project not found or you are not part of any project", 404);
+        }
+
+        // Merge leader + members into one array
+
+
+        return response.success(res, "Project members retrieved", project.members);
     } catch (err) {
         return response.error(res, err.message, 500);
     }
