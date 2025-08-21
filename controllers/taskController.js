@@ -5,7 +5,7 @@ const response = require("../utils/response");
 // Create a task
 exports.createTask = async (req, res) => {
     try {
-        const { title, assignedTo, dueDate, reminderDate } = req.body;
+        const { title, description, assignedTo, dueDate, reminderDate } = req.body;
         const userId = req.user.id;
 
         // 1️⃣ Find the project of the logged-in user
@@ -28,6 +28,7 @@ exports.createTask = async (req, res) => {
         // 4️⃣ Create task
         const newTask = new Task({
             title,
+            description,
             projectId: project._id,
             assignedBy: userId,
             assignedTo: targetUser,
@@ -111,3 +112,23 @@ exports.deleteTask = async (req, res) => {
     }
 };
 
+exports.getMyTaskSummary = async (userId) => {
+    const tasks = await Task.find({
+        $or: [
+            { assignedBy: userId },
+            { assignedTo: userId }
+        ]
+    });
+
+    const totalTasks = tasks.length;
+    const completedTasks = tasks.filter(t => t.status === 'Completed').length;
+    const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
+    const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
+
+    return {
+        totalTasks,
+        completedTasks,
+        inProgressTasks,
+        pendingTasks
+    };
+};

@@ -22,8 +22,10 @@ exports.getDashboard = async (req, res) => {
             if (project) {
                 // Call the progress summary function and attach its value
                 const { getProjectProgressSummary } = require('../controllers/projectController');
+                const { getMyTaskSummary } = require('../controllers/taskController');
                 const progressSummary = await getProjectProgressSummary(project._id);
-                data = { ...project.toObject(), progressSummary };
+                const myTaskSummary = await getMyTaskSummary(userId);
+                data = { ...project.toObject(), progressSummary, myTaskSummary };
             }
         }
 
