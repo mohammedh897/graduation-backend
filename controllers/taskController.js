@@ -124,11 +124,16 @@ exports.getMyTaskSummary = async (userId) => {
     const completedTasks = tasks.filter(t => t.status === 'Completed').length;
     const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
     const pendingTasks = tasks.filter(t => t.status === 'Pending').length;
+    const completionPercentage = totalTasks === 0
+        ? 0
+        : Math.round((completedTasks / totalTasks) * 100);
+
 
     return {
         totalTasks,
         completedTasks,
         inProgressTasks,
-        pendingTasks
+        pendingTasks,
+        completionPercentage
     };
 };
