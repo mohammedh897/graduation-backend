@@ -114,10 +114,7 @@ exports.deleteTask = async (req, res) => {
 
 exports.getMyTaskSummary = async (userId) => {
     const tasks = await Task.find({
-        $or: [
-            { assignedBy: userId },
-            { assignedTo: userId }
-        ]
+        assignedTo: userId
     });
 
     const totalTasks = tasks.length;

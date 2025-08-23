@@ -68,15 +68,78 @@ exports.loginUser = async (req, res) => {
             process.env.JWT_SECRET,
             { expiresIn: "1d" }
         );
+        let inProject = false;
+        let projectId = null;
 
-        const project = await Project.findOne({
-            $or: [
-                { leader: user._id },
-                { members: user._id }
-            ]
-        }).select('_id');
+        if (user.userType === "Student") {
+            const proj = await Project.findOne({
+                $or: [{ leader: user._id }, { members: user._id }]
+            }).select('_id');
 
-        const inProject = !!project; // true if found
+            if (proj) {
+                inProject = true;
+                projectId = proj._id;
+            }
+        } else if (user.userType === "Supervisor") {
+            const projs = await Project.find({ supervisor: user._id }).select('_id');
+
+            if (projs.length > 0) {
+                inProject = true;
+                projectId = projs.map(p => p._id); // return array of IDs
+            }
+        }
+
+        //     else if (user.userType === "Supervisor") {
+        //         console.log("🔍 Checking projects for supervisor:", user._id);
+
+        //         const projects = await Project.find({ Supervisor: user._id }).select('_id supervisor');
+
+        //         console.log("📝 Found projects:", projects);
+
+        //         if (projects.length > 0) {
+        //             inProject = true;
+        //             projectId = projects.map(p => p._id);
+        //         }
+        //     }
+        // }
+
+        //     //working code
+        // } else if (user.userType === "Supervisor") {
+        //     const proj = await Project.findOne({ supervisor: user._id }).select('_id');
+        //     if (proj) {
+        //         inProject = true;
+        //         projectId = proj._id;
+        //     }
+        // }
+        //     else if (user.userType === "Supervisor") {
+        //         const projects = await Project.find({ supervisor: user._id }).select('_id');
+        //         if (projects.length > 0) {
+        //             inProject = true;
+        //             projectId = projects.map(p => p._id); // If supervisor can have multiple projects       
+        //         }
+        //     }
+        // }
+
+
+        // let inProject = false;
+        // if (user.userType === "Student") {
+        //     const proj = await Project.findOne({
+        //         $or: [{ leader: user._id }, { members: user._id }]
+        //     }).select('_id');
+        //     inProject = !!proj;
+        // } else if (user.userType === "Supervisor") {
+        //     const proj = await Project.findOne({ supervisor: user._id }).select('_id');
+        //     inProject = !!proj;
+        // }
+
+        // const project = await Project.findOne({
+        //     $or: [
+        //         { leader: user._id },
+        //         { members: user._id }
+        //     ]
+        // }).select('_id');
+
+        // const inProject = !!project; // true if found
 
         // const token = jwt.sign(
         //     process.env.JWT_SECRET,
@@ -84,6 +147,18 @@ exports.loginUser = async (req, res) => {
         // );
         // For now, just return success + user ID (token comes later)
         // res.json({ message: '✅ Login successful!', token });
+        // console.log("🧑 Logged in user:", {
+        //     id: user._id,
+        //     username: user.username,
+        //     email: user.email,
+        //     userType: user.userType
+        // });sole.log("🧑 Logged in user:", {
+        //     id: user._id,
+        //     username: user.username,
+        //     email: user.email,
+        //     userType: user.userType
+        // });
+
         return response.success(res, "Login successful", {
             id: user._id,
             username: user.username,
@@ -91,7 +166,7 @@ exports.loginUser = async (req, res) => {
             userType: user.userType,
             isAdmin: user.isAdmin,
             inProject,
-            projectId: project ? project._id : null,
+            projectId,
             token
         });
     } catch (error) {

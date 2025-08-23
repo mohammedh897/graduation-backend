@@ -1,5 +1,6 @@
 // controllers/supervisorController.js
 const User = require('../models/User');
+const Project = require('../models/Project');
 const response = require('../utils/response');
 
 /**
@@ -50,8 +51,46 @@ const getAvailableSupervisors = async (req, res) => {
     }
 };
 
-// Export both functions
+// Get all projects supervised by this supervisor
+const getMyProjects = async (req, res) => {
+    try {
+        const projects = await Project.find({ supervisor: req.user.id })
+            .populate('leader', 'username email')
+            .populate('members', 'username email');
+
+        return response.success(res, "Projects retrieved", projects);
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
+
+// Get all students supervised by this supervisor
+const getMyStudents = async (req, res) => {
+    try {
+        const projects = await Project.find({ supervisor: req.user.id })
+            .populate('leader', 'username email')
+            .populate('members', 'username email');
+
+        // flatten unique students
+        let students = [];
+        projects.forEach(p => {
+            students.push(p.leader, ...p.members);
+        });
+
+        // remove duplicates
+        const unique = {};
+        students.forEach(s => { if (s) unique[s._id] = s; });
+
+        return response.success(res, "Students retrieved", Object.values(unique));
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
+
+// Export  functions
 module.exports = {
     updateSupervisorStatus,
-    getAvailableSupervisors
+    getAvailableSupervisors,
+    getMyProjects,
+    getMyStudents
 };
