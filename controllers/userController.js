@@ -80,14 +80,15 @@ exports.loginUser = async (req, res) => {
                 inProject = true;
                 projectId = proj._id;
             }
-        } else if (user.userType === "Supervisor") {
-            const projs = await Project.find({ supervisor: user._id }).select('_id');
-
-            if (projs.length > 0) {
-                inProject = true;
-                projectId = projs.map(p => p._id); // return array of IDs
-            }
         }
+        // } else if (user.userType === "Supervisor") {
+        //     const projs = await Project.find({ supervisor: user._id }).select('_id');
+
+        //     if (projs.length > 0) {
+        //         inProject = true;
+        //         projectId = projs.map(p => p._id); // return array of IDs
+        //     }
+        // }
 
         //     else if (user.userType === "Supervisor") {
         //         console.log("🔍 Checking projects for supervisor:", user._id);

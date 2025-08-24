@@ -1,6 +1,7 @@
 const Project = require('../models/Project');
 const User = require('../models/User');
 const response = require('../utils/response');
+const { getProjectProgressSummary } = require('../controllers/projectController');
 
 exports.getDashboard = async (req, res) => {
     try {
@@ -21,11 +22,10 @@ exports.getDashboard = async (req, res) => {
 
             if (project) {
                 // Call the progress summary function and attach its value
-                const { getProjectProgressSummary } = require('../controllers/projectController');
                 const { getMyTaskSummary } = require('../controllers/taskController');
                 const progressSummary = await getProjectProgressSummary(project._id);
                 const myTaskSummary = await getMyTaskSummary(userId);
-                data = { ...project.toObject(), progressSummary, myTaskSummary };
+                data = { role: "Student", ...project.toObject(), progressSummary, myTaskSummary };
             }
         }
 
@@ -35,8 +35,37 @@ exports.getDashboard = async (req, res) => {
                 .populate('leader', 'username email')
                 .populate('members', 'username email')
 
-            data = projects;
+            const projectsWithSummary = await Promise.all(
+                projects.map(async (p) => {
+                    const progressSummary = await getProjectProgressSummary(p._id);
+                    return { ...p.toObject(), progressSummary };
+                })
+            );
+            // const upcomingDiscussions = await Project.countDocuments({
+            //     supervisor: supervisorId,
+            //     discussionDate: { $gte: new Date() }
+            // });
+
+
+            data = {
+                role: "Supervisor",
+                status: user.status,
+                totalTeams: projects.length,
+                // upcomingDiscussions: upcomingDiscussions,
+                upcomingDiscussions: projects.filter(p => p.finalPresentation && p.finalPresentation >= new Date()).length,
+                supervisedTeams: projects.map(p => ({
+                    id: p._id,
+                    projectName: p.projectName,
+                    leader: p.leader.username,
+                    members: p.members.map(m => m.username),
+                    status: p.status || "On Track"
+                }))
+                // projects: projectsWithSummary
+            };
         }
+
+        //     data = projects;
+        // }
 
         if (user.isAdmin) {
             const projects = await Project.find()
@@ -44,12 +73,23 @@ exports.getDashboard = async (req, res) => {
                 .populate('leader', 'username email')
                 .populate('members', 'username email')
 
-            data = projects;
-        }
+            const projectsWithSummary = await Promise.all(
+                projects.map(async (p) => {
+                    const progressSummary = await getProjectProgressSummary(p._id);
+                    return { ...p.toObject(), progressSummary };
+                })
+            );
 
+            data = {
+                role: "Admin",
+                totalProjects: projects.length,
+                projects: projectsWithSummary
+            };
+        }
 
         return response.success(res, "Dashboard data", data);
     } catch (err) {
         return response.error(res, err.message, 500);
     }
 };
+
