@@ -59,7 +59,8 @@ exports.getProjectTasks = async (req, res) => {
 
         const tasks = await Task.find({ projectId: project._id })
             .populate('assignedBy', 'username email')
-            .populate('assignedTo', 'username email');
+            .populate('assignedTo', 'username email')
+            .sort({ createdAt: -1 }); // -1 = descending (newest first)
 
         return response.success(res, "Project tasks retrieved", tasks);
     } catch (error) {

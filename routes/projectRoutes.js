@@ -1,17 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const { createProject, getProjectMembers } = require('../controllers/projectController');
-const { joinProject } = require('../controllers/projectController');
-const { getMyProject } = require('../controllers/projectController');
+const projectController = require('../controllers/projectController');
+
 // const authMiddleware = require('../middleware/authMiddleware');
 const auth = require('../middleware/verifyToken');
 
-router.post('/create', auth, createProject);
+router.post('/create', auth, projectController.createProject);
 
-router.post('/join', auth, joinProject);
+router.post('/join', auth, projectController.joinProject);
 
-router.get('/my-project', auth, getMyProject);
+router.get('/my-project', auth, projectController.getMyProject);
 
-router.get('/members', auth, getProjectMembers);
+router.get('/members', auth, projectController.getProjectMembers);
+
+router.put('/:projectId/final-presentation', auth, projectController.setFinalPresentation);
+
+router.get('/:projectId/final-presentation', auth, projectController.getFinalPresentation);
 
 module.exports = router;

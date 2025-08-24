@@ -21,7 +21,8 @@ const ProjectSchema = new mongoose.Schema({
     leader: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     teamCode: { type: String, required: true, unique: true },
-    status: { type: String, enum: ['open', 'full'], default: 'open' }
+    status: { type: String, enum: ['open', 'full'], default: 'open' },
+    finalPresentation: { date: { type: Date }, description: { type: String } }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Project', ProjectSchema);

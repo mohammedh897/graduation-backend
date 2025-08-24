@@ -211,3 +211,42 @@ exports.getProjectMembers = async (req, res) => {
         return response.error(res, err.message, 500);
     }
 };
+
+// Supervisor sets final presentation schedule
+exports.setFinalPresentation = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        const { date, description } = req.body;
+
+        const project = await Project.findById(projectId);
+        if (!project) return response.error(res, "Project not found", 404);
+
+        // ✅ Only supervisor of this project can set schedule
+        if (project.supervisor.toString() !== req.user.id) {
+            return response.error(res, "Not authorized", 403);
+        }
+
+        project.finalPresentation = { date, description };
+        await project.save();
+
+        return response.success(res, "Final presentation scheduled", project.finalPresentation);
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
+
+// Anyone in the project (students/supervisor) can view it
+exports.getFinalPresentation = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+
+        const project = await Project.findById(projectId)
+            .populate('supervisor', 'username email');
+
+        if (!project) return response.error(res, "Project not found", 404);
+
+        return response.success(res, "Final presentation details", project.finalPresentation);
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
