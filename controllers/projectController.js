@@ -221,10 +221,10 @@ exports.setFinalPresentation = async (req, res) => {
         const project = await Project.findById(projectId);
         if (!project) return response.error(res, "Project not found", 404);
 
-        // ✅ Only supervisor of this project can set schedule
-        if (project.supervisor.toString() !== req.user.id) {
-            return response.error(res, "Not authorized", 403);
-        }
+        // // ✅ Only supervisor of this project can set schedule
+        // if (project.supervisor.toString() !== req.user.id) {
+        //     return response.error(res, "Not authorized", 403);
+        // }
 
         project.finalPresentation = { date };
         await project.save();

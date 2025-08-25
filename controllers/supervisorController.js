@@ -1,6 +1,7 @@
 // controllers/supervisorController.js
 const User = require('../models/User');
 const Project = require('../models/Project');
+const Task = require('../models/Task');
 const response = require('../utils/response');
 
 /**
@@ -18,9 +19,9 @@ const updateSupervisorStatus = async (req, res) => {
         }
 
         const supervisor = await User.findById(supervisorId);
-        if (!supervisor || supervisor.userType !== 'Supervisor') {
-            return response.error(res, "Not a supervisor", 403);
-        }
+        // if (!supervisor || supervisor.userType !== 'Supervisor') {
+        //     return response.error(res, "Not a supervisor", 403);
+        // }
 
         supervisor.status = status;
         await supervisor.save();
@@ -86,11 +87,110 @@ const getMyStudents = async (req, res) => {
         return response.error(res, err.message, 500);
     }
 };
+const { getProjectProgressSummary, getProjectStatus } = require('./projectController');
+
+const getTeamDetails = async (req, res) => {
+    try {
+        const supervisorId = req.user.id;
+        const projectId = req.params.projectId;
+
+        // Verify project belongs to this supervisor
+        const project = await Project.findOne({ _id: projectId, supervisor: supervisorId })
+            .populate('leader', 'username email')
+            .populate('members', 'username email')
+            .populate('supervisor', 'username email');
+
+        if (!project) {
+            return response.error(res, "Project not found or not supervised by you", 404);
+        }
+
+        // Get only summary (not tasks)
+        const progressSummary = await getProjectProgressSummary(projectId);
+        const projectStatus = await getProjectStatus(projectId);
+
+        return response.success(res, "Team details retrieved", {
+            project,
+            progressSummary,
+            projectStatus,
+            finalPresentation: project.finalPresentation || {},
+
+        });
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
+
+
+const getTeamTasks = async (req, res) => {
+    try {
+        const supervisorId = req.user.id;
+        const projectId = req.params.projectId;
+
+        // Verify supervisor owns the project
+        const project = await Project.findOne({ _id: projectId, supervisor: supervisorId });
+        if (!project) {
+            return response.error(res, "Project not found or not supervised by you", 404);
+        }
+
+        const tasks = await Task.find({ projectId })
+            .populate('assignedTo', 'username ')
+            .sort({ createdAt: -1 });
+        // Format tasks to include only necessary fields
+        const formattedTasks = tasks.map(t => ({
+            id: t._id,
+            title: t.title,
+            status: t.status,
+            assignedTo: t.assignedTo ? { id: t.assignedTo._id, username: t.assignedTo.username } : null,
+            // assignedTo: task.assignedTo?.username || "Unassigned"
+            dueDate: t.dueDate,
+        }));
+        return response.success(res, "Project tasks retrieved", formattedTasks);
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
+
+const setMaxProjects = async (req, res) => {
+    try {
+        const supervisorId = req.user.id;
+
+        // ensure only supervisors can call this
+        const supervisor = await User.findById(supervisorId);
+        // if (!supervisor || supervisor.userType !== "Supervisor") {
+        //     return response.error(res, "Only supervisors can set max projects", 403);
+        // }
+
+        const { maxProjects } = req.body;
+        if (!maxProjects || maxProjects < 1) {
+            return response.error(res, "Max projects must be at least 1", 400);
+        }
+
+        supervisor.maxProjects = maxProjects;
+
+        // check if already supervising too many
+        const currentCount = await Project.countDocuments({ supervisor: supervisorId });
+        if (supervisor.status !== "full") {
+            supervisor.status = currentCount >= maxProjects ? "full" : "available";
+        }
+
+        await supervisor.save();
+
+        return response.success(res, "Max projects updated", {
+            maxProjects: supervisor.maxProjects,
+            status: supervisor.status,
+        });
+    } catch (err) {
+        return response.error(res, err.message, 500);
+    }
+};
 
 // Export  functions
 module.exports = {
     updateSupervisorStatus,
     getAvailableSupervisors,
     getMyProjects,
-    getMyStudents
+    getMyStudents,
+    getTeamDetails,
+    getTeamTasks,
+    setMaxProjects
 };

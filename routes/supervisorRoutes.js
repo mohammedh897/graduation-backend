@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { updateSupervisorStatus, getAvailableSupervisors, getMyProjects, getMyStudents } = require('../controllers/supervisorController');
+const { updateSupervisorStatus, getAvailableSupervisors, getMyProjects, getMyStudents, getTeamDetails, getTeamTasks, setMaxProjects } = require('../controllers/supervisorController');
 const verifyToken = require('../middleware/verifyToken'); // middleware to decode JWT
 const supervisorMiddleware = require('../middleware/supervisorMiddleware');
 
@@ -15,5 +15,12 @@ router.get('/projects', verifyToken, supervisorMiddleware, getMyProjects);
 
 // Get students for the logged-in supervisor
 router.get('/students', verifyToken, supervisorMiddleware, getMyStudents);
+
+router.get('/team/:projectId', verifyToken, supervisorMiddleware, getTeamDetails);
+
+router.get('/tasks/:projectId', verifyToken, supervisorMiddleware, getTeamTasks);
+
+router.put('/max-projects', verifyToken, supervisorMiddleware, setMaxProjects);
+
 
 module.exports = router;
