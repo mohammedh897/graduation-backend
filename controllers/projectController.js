@@ -216,7 +216,7 @@ exports.getProjectMembers = async (req, res) => {
 exports.setFinalPresentation = async (req, res) => {
     try {
         const { projectId } = req.params;
-        const { date, description } = req.body;
+        const { date } = req.body;
 
         const project = await Project.findById(projectId);
         if (!project) return response.error(res, "Project not found", 404);
@@ -226,7 +226,7 @@ exports.setFinalPresentation = async (req, res) => {
             return response.error(res, "Not authorized", 403);
         }
 
-        project.finalPresentation = { date, description };
+        project.finalPresentation = { date };
         await project.save();
 
         return response.success(res, "Final presentation scheduled", project.finalPresentation);
@@ -249,4 +249,57 @@ exports.getFinalPresentation = async (req, res) => {
     } catch (err) {
         return response.error(res, err.message, 500);
     }
+};
+
+exports.getSupervisedProjects = async (supervisorId) => {
+    return await Project.find({ supervisor: supervisorId })
+        .populate('leader', 'username email')
+        .populate('members', 'username email');
+};
+
+exports.getUpcomingDiscussions = async (supervisorId) => {
+    const projects = await Project.find({
+        supervisor: supervisorId,
+        "finalPresentation.date": { $gte: new Date() }
+    }).select('finalPresentation.date');
+
+    if (!projects.length) return { count: 0, nextDate: null };
+
+    const nextDate = projects
+        .map(p => p.finalPresentation.date)
+        .sort((a, b) => a - b)[0];
+
+    return { count: projects.length, nextDate };
+};
+
+// ✅ Get recent projects for a supervisor
+exports.getRecentProjects = async (supervisorId, limit = 3) => {
+    const recentProjects = await Project.find({ supervisor: supervisorId })
+        .sort({ updatedAt: -1 })
+        .limit(limit)
+        .select('projectName updatedAt');
+
+    return recentProjects;
+};
+
+// ✅ Get project status (On Track / Needs Attention)
+exports.getProjectStatus = async (projectId) => {
+    const totalTasks = await Task.countDocuments({ projectId });
+
+    if (totalTasks === 0) {
+        return "On Track"; // nothing overdue yet
+    }
+
+    const overdueTasks = await Task.countDocuments({
+        projectId,
+        dueDate: { $lt: new Date() },
+        status: { $ne: 'Completed' }
+    });
+
+    // "Needs Attention" only if > 50% of tasks are overdue
+    if (overdueTasks / totalTasks > 0.5) {
+        return "Needs Attention";
+    }
+
+    return "On Track";
 };

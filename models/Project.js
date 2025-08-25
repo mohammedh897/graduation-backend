@@ -22,7 +22,7 @@ const ProjectSchema = new mongoose.Schema({
     members: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     teamCode: { type: String, required: true, unique: true },
     status: { type: String, enum: ['open', 'full'], default: 'open' },
-    finalPresentation: { date: { type: Date }, description: { type: String } }
+    finalPresentation: { date: { type: Date } }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Project', ProjectSchema);

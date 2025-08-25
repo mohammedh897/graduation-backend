@@ -31,38 +31,69 @@ exports.getDashboard = async (req, res) => {
 
 
         if (user.userType === 'Supervisor') {
-            const projects = await Project.find({ supervisor: userId })
-                .populate('leader', 'username email')
-                .populate('members', 'username email')
+            const { getSupervisedProjects, getUpcomingDiscussions, getProjectProgressSummary, getProjectStatus, getRecentProjects } = require('./projectController');
+            const supervisedProjects = await getSupervisedProjects(userId);
+            const upcomingDiscussions = await getUpcomingDiscussions(userId);
+            const supervisedTeams = await Promise.all(
+                supervisedProjects.map(async (p) => ({
+                    id: p._id,
+                    projectName: p.projectName,
+                    // leader: p.leader.username,
+                    // members: p.members.map(m => m.username),
+                    status: p.status,
+                    completionPercentage: (await getProjectProgressSummary(p._id)).completionPercentage,
+                    finalPresentation: p.finalPresentation || null,
+                    ProjectStatus: await getProjectStatus(p._id)
 
-            const projectsWithSummary = await Promise.all(
-                projects.map(async (p) => {
-                    const progressSummary = await getProjectProgressSummary(p._id);
-                    return { ...p.toObject(), progressSummary };
-                })
+
+                }))
             );
-            // const upcomingDiscussions = await Project.countDocuments({
-            //     supervisor: supervisorId,
-            //     discussionDate: { $gte: new Date() }
-            // });
-
-
+            const recentActivity = await getRecentProjects(userId, 3);
+            // const ProjectStatus = await getProjectStatus(Project._id);
             data = {
                 role: "Supervisor",
                 status: user.status,
-                totalTeams: projects.length,
-                // upcomingDiscussions: upcomingDiscussions,
-                upcomingDiscussions: projects.filter(p => p.finalPresentation && p.finalPresentation >= new Date()).length,
-                supervisedTeams: projects.map(p => ({
-                    id: p._id,
-                    projectName: p.projectName,
-                    leader: p.leader.username,
-                    members: p.members.map(m => m.username),
-                    status: p.status || "On Track"
-                }))
-                // projects: projectsWithSummary
+                totalTeams: supervisedTeams.length,
+                upcomingDiscussions,
+                recentActivity,
+                // ProjectStatus,
+                supervisedTeams
             };
         }
+
+        // const projects = await Project.find({ supervisor: userId })
+        //     .populate('leader', 'username email')
+        //     .populate('members', 'username email')
+
+        // const projectsWithSummary = await Promise.all(
+        //     projects.map(async (p) => {
+        //         const progressSummary = await getProjectProgressSummary(p._id);
+        //         return { ...p.toObject(), progressSummary };
+        //     })
+        // );
+        // const upcomingDiscussions = await Project.countDocuments({
+        //     supervisor: supervisorId,
+        //     discussionDate: { $gte: new Date() }
+        // });
+
+
+        //     data = {
+        //         role: "Supervisor",
+        //         status: user.status,
+        //         totalTeams: projects.length,
+        //         // upcomingDiscussions: upcomingDiscussions,
+        //         upcomingDiscussions: projects.filter(p => p.finalPresentation && p.finalPresentation >= new Date()).length,
+        //         supervisedTeams: projects.map(p => ({
+        //             id: p._id,
+        //             finalPresentation: p.finalPresentation,
+        //             projectName: p.projectName,
+        //             leader: p.leader.username,
+        //             members: p.members.map(m => m.username),
+        //             status: p.status || "On Track"
+        //         }))
+        //         // projects: projectsWithSummary
+        //     };
+        // }
 
         //     data = projects;
         // }
