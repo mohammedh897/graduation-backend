@@ -256,21 +256,46 @@ exports.getSupervisedProjects = async (supervisorId) => {
         .populate('leader', 'username email')
         .populate('members', 'username email');
 };
+exports.getUpcomingDiscussions = async (supervisorId, days = 7) => {
+    const today = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(today.getDate() + days);
 
-exports.getUpcomingDiscussions = async (supervisorId) => {
-    const projects = await Project.find({
+    // Count all upcoming discussions (any future date)
+    const allUpcoming = await Project.countDocuments({
         supervisor: supervisorId,
-        "finalPresentation.date": { $gte: new Date() }
-    }).select('finalPresentation.date');
+        "finalPresentation.date": { $gte: today }
+    });
 
-    if (!projects.length) return { count: 0, nextDate: null };
+    // Check if any are within the next X days
+    const withinNextWeek = await Project.countDocuments({
+        supervisor: supervisorId,
+        "finalPresentation.date": { $gte: today, $lte: nextWeek }
+    });
 
-    const nextDate = projects
-        .map(p => p.finalPresentation.date)
-        .sort((a, b) => a - b)[0];
-
-    return { count: projects.length, nextDate };
+    // Return both count + a hover message
+    return {
+        count: allUpcoming,
+        message: withinNextWeek > 0
+            ? `There is an upcoming discussion within ${days} days`
+            : `No discussions within the next ${days} days`
+    };
 };
+
+// exports.getUpcomingDiscussions = async (supervisorId) => {
+//     const projects = await Project.find({
+//         supervisor: supervisorId,
+//         "finalPresentation.date": { $gte: new Date() }
+//     }).select('finalPresentation.date');
+
+//     if (!projects.length) return { count: 0, nextDate: null };
+
+//     const nextDate = projects
+//         .map(p => p.finalPresentation.date)
+//         .sort((a, b) => a - b)[0];
+
+//     return { count: projects.length, nextDate };
+// };
 
 // ✅ Get recent projects for a supervisor
 exports.getRecentProjects = async (supervisorId, limit = 3) => {
