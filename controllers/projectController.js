@@ -217,6 +217,8 @@ exports.setFinalPresentation = async (req, res) => {
     try {
         const { projectId } = req.params;
         const { date } = req.body;
+        // let date = new Date(req.body.date);
+        // date.setUTCHours(0, 0, 0, 0);  // force midnight UTC
 
         const project = await Project.findById(projectId);
         if (!project) return response.error(res, "Project not found", 404);

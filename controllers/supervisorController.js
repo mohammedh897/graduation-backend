@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Project = require('../models/Project');
 const Task = require('../models/Task');
 const response = require('../utils/response');
+const { getProjectProgressSummary, getProjectStatus } = require('./projectController');
 
 /**
  * Update supervisor availability status
@@ -55,11 +56,23 @@ const getAvailableSupervisors = async (req, res) => {
 // Get all projects supervised by this supervisor
 const getMyProjects = async (req, res) => {
     try {
+        const projectId = req.params.projectId;
+        const projectStatus = await getProjectStatus(projectId);
         const projects = await Project.find({ supervisor: req.user.id })
-            .populate('leader', 'username email')
-            .populate('members', 'username email');
+        // .populate('leader', 'username email')
+        // .populate('members', 'username email');
+        const projectsWithStatus = projects.map(p => ({
+            id: p._id,
+            projectName: p.projectName,
+            projectStatus: projectStatus
+        }))
+        const totalteames = projectsWithStatus.length
 
-        return response.success(res, "Projects retrieved", projects);
+
+        return response.success(res, "Projects retrieved", {
+            totalteames,
+            projectsWithStatus
+        });
     } catch (err) {
         return response.error(res, err.message, 500);
     }
@@ -87,7 +100,6 @@ const getMyStudents = async (req, res) => {
         return response.error(res, err.message, 500);
     }
 };
-const { getProjectProgressSummary, getProjectStatus } = require('./projectController');
 
 const getTeamDetails = async (req, res) => {
     try {
@@ -112,7 +124,7 @@ const getTeamDetails = async (req, res) => {
             project,
             progressSummary,
             projectStatus,
-            finalPresentation: project.finalPresentation || {},
+            // finalPresentation: project.finalPresentation || {},
 
         });
     } catch (err) {

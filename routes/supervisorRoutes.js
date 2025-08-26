@@ -8,7 +8,7 @@ const supervisorMiddleware = require('../middleware/supervisorMiddleware');
 router.put('/status', verifyToken, supervisorMiddleware, updateSupervisorStatus);
 
 // Get available supervisors
-router.get('/available', verifyToken, supervisorMiddleware, getAvailableSupervisors);
+router.get('/available', verifyToken, getAvailableSupervisors);
 
 // Get projects for the logged-in supervisor
 router.get('/projects', verifyToken, supervisorMiddleware, getMyProjects);
