@@ -23,8 +23,10 @@ exports.createProject = async (req, res) => {
 
         // 1. Validate inputs
         if (!projectName || !supervisorId) {
+            console.log("📥 Incoming body:", req.body);
             return response.error(res, "Project name and supervisor are required", 400);
         }
+
 
         // 2. Check supervisor exists & is available
         const supervisor = await User.findById(supervisorId);

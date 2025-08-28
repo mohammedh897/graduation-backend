@@ -25,6 +25,8 @@ exports.getDashboard = async (req, res) => {
                 const { getMyTaskSummary } = require('../controllers/taskController');
                 const progressSummary = await getProjectProgressSummary(project._id);
                 const myTaskSummary = await getMyTaskSummary(userId);
+                // const projectTasks = await getProjectTasks(userId)
+                //     .select('id title dueDate status assignedTo'); // only needed fields
                 data = { role: "Student", ...project.toObject(), progressSummary, myTaskSummary };
             }
         }
@@ -54,6 +56,7 @@ exports.getDashboard = async (req, res) => {
                 role: "Supervisor",
                 status: user.status,
                 totalTeams: supervisedTeams.length,
+                maxProjects: user.maxProjects,
                 upcomingDiscussions,
                 recentActivity,
                 // ProjectStatus,

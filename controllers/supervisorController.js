@@ -9,34 +9,88 @@ const { getProjectProgressSummary, getProjectStatus } = require('./projectContro
  * Update supervisor availability status
  * Body: { status: "available" | "full" }
  */
+//     try {
+//         const { status } = req.body;
+//         const supervisorId = req.user.id; // From JWT payload
+
+//         // Validate input
+//         if (!status || !["available", "full"].includes(status)) {
+//             return response.error(res, "Invalid status value", 400);
+//         }
+
+//         const supervisor = await User.findById(supervisorId);
+//         // if (!supervisor || supervisor.userType !== 'Supervisor') {
+//         //     return response.error(res, "Not a supervisor", 403);
+//         // }
+
+//         supervisor.status = status;
+//         await supervisor.save();
+
+//         return response.success(res, "Status updated successfully", {
+//             id: supervisor._id,
+//             username: supervisor.username,
+//             status: supervisor.status
+//         });
+//     } catch (err) {
+//         return response.error(res, err.message, 500);
+//     }
+// };
+// if (maxProjects !== undefined) {
+//     const numMaxProjects = parseInt(maxProjects, 10);
+//     if (isNaN(numMaxProjects) || numMaxProjects < 1) {
+//         return response.error(res, "Max projects must be a number greater than 0", 400);
+//     }
+//     supervisor.maxProjects = numMaxProjects;
+// }
+
+// const { maxProjects } = req.body;
 const updateSupervisorStatus = async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, maxProjects } = req.body;
         const supervisorId = req.user.id; // From JWT payload
 
-        // Validate input
-        if (!status || !["available", "full"].includes(status)) {
-            return response.error(res, "Invalid status value", 400);
-        }
-
         const supervisor = await User.findById(supervisorId);
-        // if (!supervisor || supervisor.userType !== 'Supervisor') {
-        //     return response.error(res, "Not a supervisor", 403);
+        // if (!supervisor) {
+        //     return response.error(res, "Supervisor not found", 404);
         // }
 
-        supervisor.status = status;
+        if (status) {
+            if (!["available", "full"].includes(status)) {
+                return response.error(res, "Invalid status value", 400);
+            }
+            supervisor.status = status;
+        }
+
+        if (!maxProjects || maxProjects < 1) {
+            return response.error(res, "Max projects must be at least 1", 400);
+        }
+
+        supervisor.maxProjects = maxProjects;
+
+        // check if already supervising too many
+        const currentCount = await Project.countDocuments({ supervisor: supervisorId });
+        if (supervisor.status !== "full") {
+            // supervisor.status = currentCount >= maxProjects ? "full" : "available";
+            if (currentCount >= maxProjects) {
+                supervisor.status = "full";
+                return response.error(res, ` Supervisor already has ${currentCount} projects, cannot assign more`, 400);
+            } else {
+                supervisor.status = "available";
+            }
+        }
+
         await supervisor.save();
 
-        return response.success(res, "Status updated successfully", {
+        return response.success(res, "Settings updated successfully", {
             id: supervisor._id,
             username: supervisor.username,
-            status: supervisor.status
+            status: supervisor.status,
+            maxProjects: supervisor.maxProjects
         });
     } catch (err) {
         return response.error(res, err.message, 500);
     }
 };
-
 /**
  * Get all available supervisors
  */
