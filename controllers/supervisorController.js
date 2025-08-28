@@ -186,11 +186,10 @@ const getTeamDetails = async (req, res) => {
     }
 };
 
-
 const getTeamTasks = async (req, res) => {
     try {
         const supervisorId = req.user.id;
-        const projectId = req.params.projectId;
+        const { projectId } = req.params;
 
         // Verify supervisor owns the project
         const project = await Project.findOne({ _id: projectId, supervisor: supervisorId });
@@ -199,22 +198,31 @@ const getTeamTasks = async (req, res) => {
         }
 
         const tasks = await Task.find({ projectId })
-            .populate('assignedTo', 'username ')
+            .populate('assignedTo', 'username')
             .sort({ createdAt: -1 });
-        // Format tasks to include only necessary fields
-        const formattedTasks = tasks.map(t => ({
-            id: t._id,
-            title: t.title,
-            status: t.status,
-            assignedTo: t.assignedTo ? { id: t.assignedTo._id, username: t.assignedTo.username } : null,
-            // assignedTo: task.assignedTo?.username || "Unassigned"
-            dueDate: t.dueDate,
-        }));
+
+        const now = new Date();
+
+        const formattedTasks = tasks.map(t => {
+            const isOverdue = t.dueDate && t.dueDate < now && t.status !== 'Completed';
+            const status = isOverdue ? 'Overdue' : t.status;
+
+            return {
+                id: t._id,
+                title: t.title,
+                status,
+                isOverdue, // helpful for frontend badges
+                assignedTo: t.assignedTo ? { id: t.assignedTo._id, username: t.assignedTo.username } : null,
+                dueDate: t.dueDate,
+            };
+        });
+
         return response.success(res, "Project tasks retrieved", formattedTasks);
     } catch (err) {
         return response.error(res, err.message, 500);
     }
 };
+
 
 const setMaxProjects = async (req, res) => {
     try {
