@@ -110,22 +110,25 @@ const getAvailableSupervisors = async (req, res) => {
 // Get all projects supervised by this supervisor
 const getMyProjects = async (req, res) => {
     try {
-        const projectId = req.params.projectId;
-        const projectStatus = await getProjectStatus(projectId);
-        const projects = await Project.find({ supervisor: req.user.id })
-        // .populate('leader', 'username email')
-        // .populate('members', 'username email');
-        const projectsWithStatus = projects.map(p => ({
-            id: p._id,
-            projectName: p.projectName,
-            projectStatus: projectStatus
-        }))
-        const totalteames = projectsWithStatus.length
+        const projects = await Project.find({ supervisor: req.user.id });
 
+        // compute status for each project individually
+        const projectsWithStatus = await Promise.all(
+            projects.map(async (p) => {
+                const status = await getProjectStatus(p._id);  // 👈 pass each project ID
+                const { completionPercentage } = await getProjectProgressSummary(p._id);
+                return {
+                    id: p._id,
+                    projectName: p.projectName,
+                    projectStatus: status,
+                    completionPercentage,
+                };
+            })
+        );
 
         return response.success(res, "Projects retrieved", {
-            totalteames,
-            projectsWithStatus
+            totalTeams: projectsWithStatus.length,
+            projects: projectsWithStatus
         });
     } catch (err) {
         return response.error(res, err.message, 500);
