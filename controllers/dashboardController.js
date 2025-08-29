@@ -27,6 +27,7 @@ exports.getDashboard = async (req, res) => {
                 const myTaskSummary = await getMyTaskSummary(userId);
                 // const projectTasks = await getProjectTasks(userId)
                 //     .select('id title dueDate status assignedTo'); // only needed fields
+                // , finalPresentation: project.finalPresentation || null 
                 data = { role: "Student", ...project.toObject(), progressSummary, myTaskSummary };
             }
         }

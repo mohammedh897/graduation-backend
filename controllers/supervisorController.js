@@ -181,7 +181,7 @@ const getTeamDetails = async (req, res) => {
             project,
             progressSummary,
             projectStatus,
-            // finalPresentation: project.finalPresentation || {},
+            finalPresentation: project.finalPresentation || null,
 
         });
     } catch (err) {

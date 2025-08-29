@@ -218,7 +218,7 @@ exports.getProjectMembers = async (req, res) => {
 exports.setFinalPresentation = async (req, res) => {
     try {
         const { projectId } = req.params;
-        const { date } = req.body;
+        const { finalPresentationDate } = req.body;
         // let date = new Date(req.body.date);
         // date.setUTCHours(0, 0, 0, 0);  // force midnight UTC
 
@@ -230,10 +230,10 @@ exports.setFinalPresentation = async (req, res) => {
         //     return response.error(res, "Not authorized", 403);
         // }
 
-        project.finalPresentation = { date };
+        project.finalPresentation = { date: finalPresentationDate };
         await project.save();
 
-        return response.success(res, "Final presentation scheduled", project.finalPresentation);
+        return response.success(res, "Final presentation scheduled", { finalPresentation: project.finalPresentation });
     } catch (err) {
         return response.error(res, err.message, 500);
     }
