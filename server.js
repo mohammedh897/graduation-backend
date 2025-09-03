@@ -3,7 +3,6 @@ const mongoose = require('mongoose');
 
 const runReminders = require('./jobs/reminderJob');
 
-// app.use('/supervisors', require('./routes/supervisorRoutes'));
 
 const express = require('express');
 const cors = require('cors');
@@ -24,25 +23,14 @@ mongoose.connect(process.env.MONGO_URI, {
     })
     .catch((err) => console.error('❌ MongoDB connection failed:', err));
 
-// Import routes
-const taskRoutes = require('./routes/taskRoutes');
-app.use('/', taskRoutes);
-
-const userRoutes = require('./routes/userRoutes');
-app.use('/', userRoutes);
-
-const projectRoutes = require('./routes/projectRoutes');
-app.use('/projects', projectRoutes);
-
-// const supervisorRoutes = require('./routes/supervisorRoutes');
-// app.use('/', supervisorRoutes);
+// Import and mount routes directly
+app.use('/', require('./routes/taskRoutes'));
+app.use('/', require('./routes/userRoutes'));
+app.use('/projects', require('./routes/projectRoutes'));
 app.use('/supervisors', require('./routes/supervisorRoutes'));
-
 app.use('/dashboard', require('./routes/dashboardRoutes'));
+app.use('/api', require('./routes/projectFilesRoutes'));
 
-// const initializeTypes = require('./seed/initializeTypes');
-
-// initializeTypes(); // Now this should work
 
 // Home route
 app.get('/', (req, res) => {
