@@ -4,6 +4,19 @@ const Project = require("../models/Project");
 const response = require("../utils/response");
 const { uploadFile, downloadFile, deleteFileFromDrive } = require("../services/drive.service");
 
+// ✅ Helper: retry once if Google token expired
+async function withRetry(fn, ...args) {
+    try {
+        return await fn(...args);
+    } catch (err) {
+        if (err.code === 401 || err.message.includes("Invalid Credentials")) {
+            console.warn("⚠️ Token expired, retrying...");
+            return await fn(...args); // retry once (after refresh by drive.service)
+        }
+        throw err;
+    }
+}
+
 // ✅ Upload a file
 exports.uploadFile = async (req, res) => {
     try {
@@ -16,8 +29,8 @@ exports.uploadFile = async (req, res) => {
         const project = await Project.findById(projectId);
         if (!project) return response.error(res, "Project not found", 404);
 
-        // Upload file to Google Drive
-        const driveFile = await uploadFile(file.buffer, file.originalname, process.env.GDRIVE_ROOT_FOLDER_ID);
+        // Upload file to Google Drive (with retry if token expired)
+        const driveFile = await withRetry(uploadFile, file.buffer, file.originalname, process.env.GDRIVE_ROOT_FOLDER_ID);
 
         // Save metadata in DB
         const newFile = await ProjectFile.create({
@@ -65,7 +78,7 @@ exports.downloadFile = async (req, res) => {
         const file = await ProjectFile.findOne({ _id: fileId, projectId });
         if (!file) return response.error(res, "File not found in DB", 404);
 
-        await downloadFile(file.driveFileId, res);
+        await withRetry(downloadFile, file.driveFileId, res);
     } catch (err) {
         return response.error(res, err.message, 500);
     }
@@ -83,7 +96,7 @@ exports.deleteFile = async (req, res) => {
         const file = await ProjectFile.findOne({ _id: fileId, projectId });
         if (!file) return response.error(res, "File not found", 404);
 
-        await deleteFileFromDrive(file.driveFileId);
+        await withRetry(deleteFileFromDrive, file.driveFileId);
         await ProjectFile.deleteOne({ _id: fileId });
 
         return res.json({ success: true, message: "File deleted successfully" });
