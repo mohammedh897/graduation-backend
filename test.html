@@ -4,170 +4,91 @@
 <head>
     <meta charset="UTF-8">
     <title>Socket.IO Chat Test</title>
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background: #f4f6f9;
+            font-family: Arial;
         }
 
-        .chat-container {
-            width: 600px;
-            margin: auto;
+        #chat {
             border: 1px solid #ccc;
-            border-radius: 10px;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            height: 80vh;
-        }
-
-        .messages {
-            flex: 1;
+            height: 300px;
+            overflow-y: scroll;
             padding: 10px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
         }
 
-        .message {
+        .msg {
+            margin: 5px;
+            padding: 8px;
+            border-radius: 8px;
             max-width: 70%;
-            padding: 10px;
-            border-radius: 12px;
-            position: relative;
-            word-wrap: break-word;
+            clear: both;
         }
 
-        .message.right {
-            align-self: flex-end;
-            background: #007bff;
-            color: white;
-            border-bottom-right-radius: 0;
-        }
-
-        .message.left {
-            align-self: flex-start;
-            background: #e9ecef;
-            color: black;
-            border-bottom-left-radius: 0;
-        }
-
-        .username {
-            font-size: 12px;
-            opacity: 0.8;
-            margin-bottom: 2px;
-        }
-
-        .timestamp {
-            font-size: 11px;
-            opacity: 0.6;
-            margin-top: 5px;
+        .me {
+            background: #dcf8c6;
+            float: right;
             text-align: right;
         }
 
-        .input-container {
-            display: flex;
-            padding: 10px;
-            border-top: 1px solid #ccc;
+        .other {
+            background: #eee;
+            float: left;
+            text-align: left;
         }
 
-        .input-container input {
-            flex: 1;
-            padding: 8px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            margin-right: 10px;
-        }
-
-        .input-container button {
-            padding: 8px 12px;
-            border: none;
-            background: #007bff;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        .top-bar {
-            padding: 10px;
-            border-bottom: 1px solid #ccc;
-            background: #f8f9fa;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .top-bar input {
-            padding: 6px;
-            flex: 1;
+        .system {
+            color: gray;
+            font-style: italic;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
-    <div class="chat-container">
-        <div class="top-bar">
-            <input type="text" id="token" placeholder="JWT Token">
-            <input type="text" id="projectId" placeholder="Project ID">
-            <select id="roomType">
-                <option value="team">Team Room</option>
-                <option value="supervisor">Supervisor Room</option>
-            </select>
-            <button onclick="joinRoom()">Join</button>
-        </div>
-        <div id="messages" class="messages"></div>
-        <div class="input-container">
-            <input type="text" id="messageInput" placeholder="Type a message...">
-            <button onclick="sendMessage()">Send</button>
-        </div>
-    </div>
+    <h2>Socket.IO Chat Test</h2>
+
+    <label>Token: <input id="token" size="50"></label><br>
+    <label>Project ID: <input id="projectId"></label><br>
+    <label>Room Type:
+        <select id="roomType">
+            <option value="team">Team</option>
+            <option value="supervisor">Supervisor</option>
+        </select>
+    </label><br><br>
+
+    <button onclick="joinRoom()">Join Room</button>
+    <div id="chat"></div>
+
+    <input id="msgInput" placeholder="Type message...">
+    <button onclick="sendMessage()">Send</button>
 
     <script>
         let socket;
-        let currentUserId = null;
-        let projectId = null;
-        let roomType = "team";
+        let currentUserId;
+        let projectId;
+        let roomType;
 
-        // Decode JWT to extract user ID
         function decodeJWT(token) {
             try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
-                return payload;
+                return JSON.parse(atob(token.split(".")[1]));
             } catch {
                 return null;
             }
         }
 
-        function renderMessage(msg) {
-            const msgBox = document.getElementById("messages");
+        function appendMessage(content, cssClass) {
             const div = document.createElement("div");
+            div.className = "msg " + cssClass;
+            div.innerHTML = content;
+            document.getElementById("chat").appendChild(div);
+            div.scrollIntoView();
+        }
 
-            const isCurrentUser = msg.sender?._id === currentUserId || msg.sender === currentUserId;
-
-            div.classList.add("message");
-            div.classList.add(isCurrentUser ? "right" : "left");
-
-            if (!isCurrentUser) {
-                const user = document.createElement("div");
-                user.classList.add("username");
-                user.innerText = msg.sender?.username || "Unknown";
-                div.appendChild(user);
-            }
-
-            const content = document.createElement("div");
-            content.innerText = msg.content;
-            div.appendChild(content);
-
-            const time = document.createElement("div");
-            time.classList.add("timestamp");
-            const date = new Date(msg.createdAt || Date.now());
-            time.innerText = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-            div.appendChild(time);
-
-            msgBox.appendChild(div);
-            msgBox.scrollTop = msgBox.scrollHeight;
+        function renderMessage(m) {
+            const sender = m.sender?.username || m.sender || "Unknown";
+            const cls = (m.sender?._id === currentUserId) ? "me" : "other";
+            appendMessage(`<b>${sender}:</b> ${m.content}`, cls);
         }
 
         function joinRoom() {
@@ -181,44 +102,40 @@
             if (!decoded || !decoded.id) return alert("Invalid token - cannot get userId");
             currentUserId = decoded.id;
 
-            // Only connect once
             if (!socket) {
                 socket = io("http://localhost:5000", { auth: { token } });
 
-                socket.on("connect", () => console.log("✅ Connected", socket.id));
-                socket.on("error", (err) => alert(typeof err === "string" ? err : err.message));
-                socket.on("disconnect", () => console.log("❌ Disconnected"));
+                socket.on("connect", () => appendMessage("✅ Connected to server", "system"));
+                socket.on("disconnect", () => appendMessage("❌ Disconnected", "system"));
+
+                socket.on("joinedProject", (data) => {
+                    appendMessage(data.message, "system");
+                });
+
+                socket.on("messageHistory", (messages) => {
+                    document.getElementById("chat").innerHTML = ""; // ✅ clear here only
+                    messages.forEach(m => renderMessage(m));
+                });
+
+                socket.on("receiveMessage", (msg) => {
+                    if (msg.roomType !== roomType) return; // only current room
+                    renderMessage(msg);
+                });
+
+                socket.on("error", (err) => {
+                    console.error("⚠️ Error", err);
+                    appendMessage("⚠️ " + (typeof err === "string" ? err : err.message), "system");
+                });
             }
 
-            // Join/switch room
             socket.emit("joinProject", { projectId, roomType });
-
-            // Clear messages when switching rooms
-            document.getElementById("messages").innerHTML = "";
-
-            socket.off("messageHistory");
-            socket.off("receiveMessage");
-
-            socket.on("messageHistory", (messages) => {
-                messages.forEach(m => {
-                    if (m.roomType === roomType) renderMessage(m);
-                });
-            });
-
-            socket.on("receiveMessage", (msg) => {
-                if (msg.roomType === roomType) renderMessage(msg);
-            });
-
-            socket.on("joinedProject", (data) => {
-                console.log("Joined room:", data);
-            });
         }
 
         function sendMessage() {
-            const content = document.getElementById("messageInput").value.trim();
+            const content = document.getElementById("msgInput").value;
             if (!content) return;
             socket.emit("sendMessage", { projectId, roomType, content });
-            document.getElementById("messageInput").value = "";
+            document.getElementById("msgInput").value = "";
         }
     </script>
 </body>
