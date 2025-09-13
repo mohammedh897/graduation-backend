@@ -3,139 +3,106 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Socket.IO Chat Test</title>
-    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
-    <style>
-        body {
-            font-family: Arial;
-        }
-
-        #chat {
-            border: 1px solid #ccc;
-            height: 300px;
-            overflow-y: scroll;
-            padding: 10px;
-        }
-
-        .msg {
-            margin: 5px;
-            padding: 8px;
-            border-radius: 8px;
-            max-width: 70%;
-            clear: both;
-        }
-
-        .me {
-            background: #dcf8c6;
-            float: right;
-            text-align: right;
-        }
-
-        .other {
-            background: #eee;
-            float: left;
-            text-align: left;
-        }
-
-        .system {
-            color: gray;
-            font-style: italic;
-            text-align: center;
-        }
-    </style>
+    <title>Project Chat</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
 
 <body>
-    <h2>Socket.IO Chat Test</h2>
+    <h2>Project Chat</h2>
 
-    <label>Token: <input id="token" size="50"></label><br>
-    <label>Project ID: <input id="projectId"></label><br>
-    <label>Room Type:
+    <div>
+        <label>Project ID:</label>
+        <input id="projectId" value="YOUR_PROJECT_ID">
+        <label>Room Type:</label>
         <select id="roomType">
             <option value="team">Team</option>
             <option value="supervisor">Supervisor</option>
         </select>
-    </label><br><br>
+        <label>Token:</label>
+        <input id="token" value="YOUR_JWT_TOKEN">
+        <button onclick="joinProject()">Join</button>
+    </div>
 
-    <button onclick="joinRoom()">Join Room</button>
-    <div id="chat"></div>
+    <div id="chatBox" style="border:1px solid black; height:200px; overflow-y:auto; margin-top:10px;"></div>
 
-    <input id="msgInput" placeholder="Type message...">
-    <button onclick="sendMessage()">Send</button>
+    <div style="margin-top:10px;">
+        <input id="messageInput" placeholder="Type a message">
+        <button onclick="sendMessage()">Send</button>
+    </div>
 
     <script>
         let socket;
-        let currentUserId;
-        let projectId;
-        let roomType;
+        let currentProjectId = null;
+        let currentRoomType = null;
 
-        function decodeJWT(token) {
-            try {
-                return JSON.parse(atob(token.split(".")[1]));
-            } catch {
-                return null;
-            }
-        }
+        function joinProject() {
+            const projectId = document.getElementById("projectId").value;
+            const roomType = document.getElementById("roomType").value;
+            const token = document.getElementById("token").value;
 
-        function appendMessage(content, cssClass) {
-            const div = document.createElement("div");
-            div.className = "msg " + cssClass;
-            div.innerHTML = content;
-            document.getElementById("chat").appendChild(div);
-            div.scrollIntoView();
-        }
-
-        function renderMessage(m) {
-            const sender = m.sender?.username || m.sender || "Unknown";
-            const cls = (m.sender?._id === currentUserId) ? "me" : "other";
-            appendMessage(`<b>${sender}:</b> ${m.content}`, cls);
-        }
-
-        function joinRoom() {
-            const token = document.getElementById("token").value.trim();
-            projectId = document.getElementById("projectId").value.trim();
-            roomType = document.getElementById("roomType").value;
-
-            if (!token || !projectId) return alert("Please enter token and projectId");
-
-            const decoded = decodeJWT(token);
-            if (!decoded || !decoded.id) return alert("Invalid token - cannot get userId");
-            currentUserId = decoded.id;
-
-            if (!socket) {
-                socket = io("http://localhost:5000", { auth: { token } });
-
-                socket.on("connect", () => appendMessage("✅ Connected to server", "system"));
-                socket.on("disconnect", () => appendMessage("❌ Disconnected", "system"));
-
-                socket.on("joinedProject", (data) => {
-                    appendMessage(data.message, "system");
-                });
-
-                socket.on("messageHistory", (messages) => {
-                    document.getElementById("chat").innerHTML = ""; // ✅ clear here only
-                    messages.forEach(m => renderMessage(m));
-                });
-
-                socket.on("receiveMessage", (msg) => {
-                    if (msg.roomType !== roomType) return; // only current room
-                    renderMessage(msg);
-                });
-
-                socket.on("error", (err) => {
-                    console.error("⚠️ Error", err);
-                    appendMessage("⚠️ " + (typeof err === "string" ? err : err.message), "system");
-                });
+            if (!projectId || !roomType || !token) {
+                alert("ProjectId, RoomType, and Token are required!");
+                return;
             }
 
-            socket.emit("joinProject", { projectId, roomType });
+            // connect with auth token
+            socket = io("http://localhost:5000", {
+                auth: { token }
+            });
+
+            socket.on("connect", () => {
+                console.log("✅ Connected:", socket.id);
+
+                currentProjectId = projectId;
+                currentRoomType = roomType;
+
+                socket.emit("joinProject", { projectId, roomType });
+            });
+
+            socket.on("joinedProject", (data) => {
+                console.log("Joined project:", data);
+            });
+
+            socket.on("messageHistory", (messages) => {
+                const chatBox = document.getElementById("chatBox");
+                chatBox.innerHTML = "";
+                messages.forEach(m => {
+                    const div = document.createElement("div");
+                    div.textContent = `${m.sender.username}: ${m.content}`;
+                    chatBox.appendChild(div);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+
+            socket.on("receiveMessage", (msg) => {
+                const chatBox = document.getElementById("chatBox");
+                const div = document.createElement("div");
+                div.textContent = `${msg.sender.username}: ${msg.content}`;
+                chatBox.appendChild(div);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+
+            socket.on("error", (err) => {
+                console.error("⚠️ Error:", err);
+                alert(err);
+            });
+
+            socket.on("disconnect", () => {
+                console.log("❌ Disconnected");
+            });
         }
 
         function sendMessage() {
-            const content = document.getElementById("msgInput").value;
+            const input = document.getElementById("messageInput");
+            const content = input.value;
             if (!content) return;
-            socket.emit("sendMessage", { projectId, roomType, content });
-            document.getElementById("msgInput").value = "";
+
+            socket.emit("sendMessage", {
+                projectId: currentProjectId,
+                roomType: currentRoomType,
+                content
+            });
+            input.value = "";
         }
     </script>
 </body>
