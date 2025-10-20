@@ -106,25 +106,75 @@ const getAvailableSupervisors = async (req, res) => {
         return response.error(res, err.message, 500);
     }
 };
+const mongoose = require("mongoose");
+const Discussion = require("../models/Discussion");
 
-// Get all projects supervised by this supervisor
 const getMyProjects = async (req, res) => {
     try {
-        const projects = await Project.find({ supervisor: req.user.id });
+        // 1) fetch projects for this supervisor
+        const projects = await Project.find({ supervisor: req.user.id }).lean();
+        const projectIds = projects.map((p) => p._id);
 
-        // compute status for each project individually
+        // 2) aggregate to get the single last message per project (across all Discussion docs)
+        const lastMessagesAgg = await Discussion.aggregate([
+            { $match: { projectId: { $in: projectIds } } },     // only discussions for these projects
+            { $unwind: "$messages" },                           // one document per message
+            { $sort: { "messages.createdAt": -1 } },            // newest messages first
+            {
+                $group: {
+                    _id: "$projectId",                              // group by project
+                    lastMessage: { $first: "$messages" }           // pick the newest message
+                }
+            },
+            {
+                $project: {
+                    projectId: "$_id",
+                    lastMessage: {
+                        content: "$lastMessage.content",
+                        createdAt: "$lastMessage.createdAt"
+                    },
+                    _id: 0
+                }
+            }
+        ]);
+
+        // 3) map aggregated results for quick lookup
+        const lastMessageMap = new Map();
+        for (const item of lastMessagesAgg) {
+            lastMessageMap.set(String(item.projectId), item.lastMessage);
+        }
+
+        // 4) build projects array with status/progress and lastMessage (do in parallel)
         const projectsWithStatus = await Promise.all(
             projects.map(async (p) => {
-                const status = await getProjectStatus(p._id);  // 👈 pass each project ID
+                const status = await getProjectStatus(p._id);
                 const { completionPercentage } = await getProjectProgressSummary(p._id);
+
+                const lm = lastMessageMap.get(String(p._id)) || null;
+                const lastMessage = lm
+                    ? { content: lm.content, time: lm.createdAt }
+                    : null;
+
                 return {
                     id: p._id,
                     projectName: p.projectName,
                     projectStatus: status,
                     completionPercentage,
+                    lastMessage,
+                    // optional: include project update time to tiebreak sorting
+                    projectUpdatedAt: p.updatedAt || p.createdAt || null
                 };
             })
         );
+
+        // 5) sort descending by last message time; fallback to projectUpdatedAt, then latest created
+        projectsWithStatus.sort((a, b) => {
+            const aTime = a.lastMessage ? new Date(a.lastMessage.time).getTime()
+                : a.projectUpdatedAt ? new Date(a.projectUpdatedAt).getTime() : 0;
+            const bTime = b.lastMessage ? new Date(b.lastMessage.time).getTime()
+                : b.projectUpdatedAt ? new Date(b.projectUpdatedAt).getTime() : 0;
+            return bTime - aTime;
+        });
 
         return response.success(res, "Projects retrieved", {
             totalTeams: projectsWithStatus.length,
@@ -134,6 +184,8 @@ const getMyProjects = async (req, res) => {
         return response.error(res, err.message, 500);
     }
 };
+
+
 
 // Get all students supervised by this supervisor
 const getMyStudents = async (req, res) => {
